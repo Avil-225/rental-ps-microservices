@@ -1,0 +1,44 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22'
+
+    - name: Install User Service Dependencies
+      run: |
+        cd services/user-service
+        npm install
+        npm run build
+
+    - name: Install Order Service Dependencies
+      run: |
+        cd services/order-service
+        npm install
+        npm run build
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+
+    - name: Install Laravel Dependencies
+      run: |
+        composer install --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+    - name: Build Docker Images
+      run: |
+        docker-compose build

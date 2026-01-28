@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - rental-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: rental_ps-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: rental_ps
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - rental-network
+
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - rental-network
+
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "3002:3002"
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - rental-network
+
+  frontend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ORDER_SERVICE_URL=http://order-service:3002
+      - USER_SERVICE_URL=http://user-service:3001
+    depends_on:
+      - user-service
+      - order-service
+      - mysql
+    networks:
+      - rental-network
+
+networks:
+  rental-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
